@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{SITE_NAME}</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked@16.4.1/lib/marked.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/lib/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@16.4.1/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/highlight.min.js"></script>
     <link id="hljs-light" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/default.min.css">
     <link id="hljs-dark" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/dracula.min.css" disabled>
     <style>
@@ -110,7 +110,7 @@
                 const li = document.createElement('li');
                 li.className = 'tree-item';
                 if (node.type === 'dir') li.classList.add(node.open ? 'open' : 'collapsed');
-                // OPRAVENO: Používá symboly šipek místo textu
+                // OPRAVENO: Používá symboly šipek (▶/▼) místo textu
                 const toggle = node.type === 'dir' ? `<span class="toggle">${node.open ? '▼' : '▶'}</span>` : '<span class="toggle"></span>';
                 li.innerHTML = `${toggle}<span class="name" data-path="${node.path}">${node.name}</span>`;
                 if (node.type === 'dir') {
@@ -178,7 +178,7 @@
                 const li = toggle.parentElement;
                 const open = li.classList.toggle('open');
                 li.classList.toggle('collapsed', !open);
-                // OPRAVENO: Používá symboly šipek místo textu
+                // OPRAVENO: Používá symboly šipek (▶/▼) místo textu
                 toggle.textContent = open ? '▼' : '▶';
                 return;
             }
