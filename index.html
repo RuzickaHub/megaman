@@ -110,7 +110,8 @@
                 const li = document.createElement('li');
                 li.className = 'tree-item';
                 if (node.type === 'dir') li.classList.add(node.open ? 'open' : 'collapsed');
-                const toggle = node.type === 'dir' ? `<span class="toggle">${node.open ? 'Down Arrow' : 'Right Arrow'}</span>` : '<span class="toggle"></span>';
+                // OPRAVENO: Používá symboly šipek místo textu
+                const toggle = node.type === 'dir' ? `<span class="toggle">${node.open ? '▼' : '▶'}</span>` : '<span class="toggle"></span>';
                 li.innerHTML = `${toggle}<span class="name" data-path="${node.path}">${node.name}</span>`;
                 if (node.type === 'dir') {
                     const ul = document.createElement('ul');
@@ -177,7 +178,8 @@
                 const li = toggle.parentElement;
                 const open = li.classList.toggle('open');
                 li.classList.toggle('collapsed', !open);
-                toggle.textContent = open ? 'Down Arrow' : 'Right Arrow';
+                // OPRAVENO: Používá symboly šipek místo textu
+                toggle.textContent = open ? '▼' : '▶';
                 return;
             }
             const name = e.target.closest('.name');
