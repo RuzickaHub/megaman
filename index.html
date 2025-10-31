@@ -100,6 +100,11 @@
                      document.getElementById('content').innerHTML = `<div class="loading"><p>Chyba: Nepodařilo se načíst soubory. Zkontrolujte, zda je repozitář veřejný a zda není dosažen rate limit GitHub API (403).</p></div>`;
                      return [];
                 }
+                
+                if (res.status === 404) {
+                     document.getElementById('content').innerHTML = `<div class="loading"><p>Chyba: Adresář ${ROOT_PATH}/${path} na větvi ${BRANCH} neexistuje.</p></div>`;
+                     return [];
+                }
 
                 const data = await res.json();
                 return Array.isArray(data) ? data.filter(item => 
@@ -151,17 +156,27 @@
             const content = document.getElementById('content');
             content.innerHTML = `<div class="loading"><div class="spinner"></div><p>Načítám...</p></div>`;
             try {
+                // Toto je volání pro stažení RAW obsahu Markdown souboru
                 const res = await fetch(`${RAW_BASE}/${path}`);
-                if (!res.ok) throw new Error();
+                
+                if (!res.ok) {
+                    throw new Error(`Chyba při stahování souboru: ${res.status} ${res.statusText}`);
+                }
+                
                 const md = await res.text();
                 const title = path.split('/').pop().replace('.md', '');
+                
+                // Převod Markdownu na HTML a zobrazení
                 content.innerHTML = `<h1 class="doc-title">${title}</h1>` + marked.parse(md, { gfm: true, breaks: false });
                 reHighlight();
                 content.scrollTop = 0;
+                
+                // Aktivace položky v menu
                 document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
                 document.querySelector(`[data-path="${path}"]`)?.closest('.tree-item')?.classList.add('active');
             } catch (e) {
-                content.innerHTML = `<div class="loading"><p>Chyba: Nepodařilo se načíst soubor: ${path}</p></div>`;
+                console.error(e);
+                content.innerHTML = `<div class="loading"><p>Chyba: Nepodařilo se načíst soubor. Ujistěte se, že soubor existuje na adrese: ${RAW_BASE}/${path}</p></div>`;
             }
         }
 
@@ -220,16 +235,24 @@
             tree = await buildTree(ROOT_PATH);
             const treeEl = document.getElementById('fileTree');
             renderTree(tree, treeEl);
-            const defaultFile = tree.flatMap(n => n.type === 'file' ? [n] : n.children || []).find(f => f.path.toLowerCase().endsWith(DEFAULT_FILE.toLowerCase())) || 
-                               tree.flatMap(n => n.type === 'file' ? [n] : n.children || [])[0];
-            if (defaultFile) loadFile(defaultFile.path);
             
-            if (tree.length === 0 && document.getElementById('content').textContent.includes('Načítám...')) {
-                 document.getElementById('content').innerHTML = `<div class="loading"><p>Chyba: Repozitář je prázdný nebo neobsahuje žádné .md soubory ve specifikovaném adresáři.</p></div>`;
+            // Logika pro nalezení a načtení výchozího souboru
+            const flatTree = tree.flatMap(n => n.type === 'file' ? [n] : n.children || []).filter(f => f.type === 'file');
+            
+            const defaultFile = flatTree.find(f => f.path.toLowerCase().endsWith(DEFAULT_FILE.toLowerCase())) || flatTree[0];
+            
+            if (defaultFile) {
+                loadFile(defaultFile.path);
+            } else {
+                // Pokud nebyl nalezen žádný Markdown soubor
+                 document.getElementById('content').innerHTML = `<div class="loading">
+                     <p>Chyba: Repozitář neobsahuje žádné .md soubory ve specifikovaném adresáři (${ROOT_PATH || '/'}).</p>
+                     <p>Ujistěte se, že v repozitáři existuje alespoň jeden soubor s příponou .md.</p>
+                 </div>`;
             }
         }
         
-        // Spouštění init() pouze pokud existuje konfigurace (kontrola proběhla na začátku)
+        // Spouštění init() pouze pokud existuje konfigurace
         if (OWNER && REPO && BRANCH) {
             init();
         }
