@@ -62,13 +62,13 @@
     </div>
 
     <script>
-        // CONFIG
-        const OWNER = '{OWNER}';
-        const REPO = '{REPO}';
-        const BRANCH = '{BRANCH}';
-        const ROOT_PATH = '{ROOT}';
-        const SITE_NAME = '{SITE_NAME}';
-        const DEFAULT_FILE = '{DEFAULT_FILE}';
+        // CONFIG - OPRAVENO: Nastavení konkrétních hodnot pro RuzickaHub/megaman
+        const OWNER = 'RuzickaHub';
+        const REPO = 'megaman';
+        const BRANCH = 'main';
+        const ROOT_PATH = ''; // Dokumentace je v kořenu repozitáře
+        const SITE_NAME = 'Docs'; // Změnil jsem z {SITE_NAME}
+        const DEFAULT_FILE = 'README.md';
 
         document.title = SITE_NAME;
         document.getElementById('site-title').textContent = SITE_NAME;
@@ -79,8 +79,18 @@
 
         async function fetchFiles(path = '') {
             try {
+                // Přidáno pro logování volání API (pro debugging)
+                console.log(`Fetching: ${API_BASE}/${path}?ref=${BRANCH}`);
+                
                 const url = ROOT_PATH ? `${API_BASE}/${ROOT_PATH}/${path}` : `${API_BASE}/${path}`;
                 const res = await fetch(`${url}?ref=${BRANCH}`);
+                
+                if (res.status === 403) {
+                     console.error("Chyba API: Dosažen rate limit GitHubu nebo je repozitář prázdný/soukromý.");
+                     document.getElementById('content').innerHTML = `<div class="loading"><p>Chyba: Nepodařilo se načíst soubory. Zkontrolujte, zda je repozitář veřejný a zda není dosažen rate limit GitHub API (403).</p></div>`;
+                     return [];
+                }
+
                 const data = await res.json();
                 return Array.isArray(data) ? data.filter(item => 
                     item.type === 'file' && item.name.endsWith('.md') || item.type === 'dir'
@@ -141,7 +151,7 @@
                 document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
                 document.querySelector(`[data-path="${path}"]`)?.closest('.tree-item')?.classList.add('active');
             } catch (e) {
-                content.innerHTML = `<div class="loading"><p>Chyba: ${path}</p></div>`;
+                content.innerHTML = `<div class="loading"><p>Chyba: Nepodařilo se načíst soubor: ${path}</p></div>`;
             }
         }
 
@@ -151,14 +161,21 @@
         document.getElementById('theme-toggle').textContent = isDark ? 'Sun' : 'Moon';
         const lightLink = document.getElementById('hljs-light');
         const darkLink = document.getElementById('hljs-dark');
+        
+        // Funkce pro nastavení stylů zvýraznění syntaxe
+        function setHighlightStyles() {
+            lightLink.disabled = isDark;
+            darkLink.disabled = !isDark;
+            reHighlight();
+        }
+        setHighlightStyles(); // Nastaví se při spuštění
+
         function toggleTheme() {
             isDark = !isDark;
             document.body.classList.toggle('dark', isDark);
             document.getElementById('theme-toggle').textContent = isDark ? 'Sun' : 'Moon';
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            lightLink.disabled = isDark;
-            darkLink.disabled = !isDark;
-            reHighlight();
+            setHighlightStyles();
         }
 
         // Events
@@ -194,9 +211,15 @@
             tree = await buildTree(ROOT_PATH);
             const treeEl = document.getElementById('fileTree');
             renderTree(tree, treeEl);
+            // Zde by měl být defaultFile nalezen z dostupných souborů
             const defaultFile = tree.flatMap(n => n.type === 'file' ? [n] : n.children || []).find(f => f.path.toLowerCase().endsWith(DEFAULT_FILE.toLowerCase())) || 
                                tree.flatMap(n => n.type === 'file' ? [n] : n.children || [])[0];
             if (defaultFile) loadFile(defaultFile.path);
+            
+            // Pokud strom souborů zůstane prázdný, zobrazí se chybová zpráva uživatele.
+            if (tree.length === 0 && document.getElementById('content').textContent.includes('Načítám...')) {
+                 document.getElementById('content').innerHTML = `<div class="loading"><p>Chyba: Repozitář je prázdný nebo neobsahuje žádné .md soubory ve specifikovaném adresáři.</p></div>`;
+            }
         }
         init();
     </script>
