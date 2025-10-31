@@ -95,14 +95,9 @@
                 const url = ROOT_PATH ? `${API_BASE}/${ROOT_PATH}/${path}` : `${API_BASE}/${path}`;
                 const res = await fetch(`${url}?ref=${BRANCH}`);
                 
-                if (res.status === 403) {
-                     console.error("Chyba API: Dosažen rate limit GitHubu nebo je repozitář prázdný/soukromý.");
-                     document.getElementById('content').innerHTML = `<div class="loading"><p>Chyba: Nepodařilo se načíst soubory. Zkontrolujte, zda je repozitář veřejný a zda není dosažen rate limit GitHub API (403).</p></div>`;
-                     return [];
-                }
-                
-                if (res.status === 404) {
-                     document.getElementById('content').innerHTML = `<div class="loading"><p>Chyba: Adresář ${ROOT_PATH}/${path} na větvi ${BRANCH} neexistuje.</p></div>`;
+                if (!res.ok) {
+                    // Chybová zpráva pro selhání načtení stromu souborů
+                     document.getElementById('content').innerHTML = `<div class="loading"><p>Chyba při načítání adresářové struktury: ${res.status} ${res.statusText}.</p><p>Zkontrolujte nastavení ROOT_PATH a zda je repozitář veřejný.</p></div>`;
                      return [];
                 }
 
@@ -155,12 +150,18 @@
         async function loadFile(path) {
             const content = document.getElementById('content');
             content.innerHTML = `<div class="loading"><div class="spinner"></div><p>Načítám...</p></div>`;
+            
+            // Zajištění čisté cesty a RAW URL
+            const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+            const finalUrl = `${RAW_BASE}/${cleanPath}`;
+
             try {
-                // Toto je volání pro stažení RAW obsahu Markdown souboru
-                const res = await fetch(`${RAW_BASE}/${path}`);
+                // Volání pro stažení RAW obsahu Markdown souboru
+                const res = await fetch(finalUrl);
                 
                 if (!res.ok) {
-                    throw new Error(`Chyba při stahování souboru: ${res.status} ${res.statusText}`);
+                    // PŘESNÁ CHYBA: Zobrazí stavový kód chyby
+                    throw new Error(`Chyba při stahování souboru. HTTP Status: ${res.status} ${res.statusText}`);
                 }
                 
                 const md = await res.text();
@@ -176,7 +177,11 @@
                 document.querySelector(`[data-path="${path}"]`)?.closest('.tree-item')?.classList.add('active');
             } catch (e) {
                 console.error(e);
-                content.innerHTML = `<div class="loading"><p>Chyba: Nepodařilo se načíst soubor. Ujistěte se, že soubor existuje na adrese: ${RAW_BASE}/${path}</p></div>`;
+                content.innerHTML = `<div class="loading"><p>
+                    Chyba: Nepodařilo se načíst soubor. Ujistěte se, že soubor existuje a má správná velká/malá písmena.
+                    <br>Adresa, která selhala: <strong>${finalUrl}</strong>
+                    <br>Detaily chyby: ${e.message}
+                </p></div>`;
             }
         }
 
@@ -243,11 +248,16 @@
             
             if (defaultFile) {
                 loadFile(defaultFile.path);
-            } else {
-                // Pokud nebyl nalezen žádný Markdown soubor
+            } else if (tree.length > 0) {
+                 // Existují složky, ale žádné .md soubory v kořenu/ROOT_PATH
                  document.getElementById('content').innerHTML = `<div class="loading">
-                     <p>Chyba: Repozitář neobsahuje žádné .md soubory ve specifikovaném adresáři (${ROOT_PATH || '/'}).</p>
-                     <p>Ujistěte se, že v repozitáři existuje alespoň jeden soubor s příponou .md.</p>
+                     <p>Repozitář obsahuje složky, ale v adresáři ${ROOT_PATH || '/'} nebyly nalezeny žádné .md soubory.</p>
+                     <p>Procházejte menu vlevo.</p>
+                 </div>`;
+            } else {
+                // Nebyl nalezen žádný soubor ani složka (prázdný repozitář)
+                 document.getElementById('content').innerHTML = `<div class="loading">
+                     <p>Chyba: Repozitář je prázdný nebo neobsahuje žádné .md soubory ve specifikovaném adresáři (${ROOT_PATH || '/'}).</p>
                  </div>`;
             }
         }
