@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{SITE_NAME}</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked@16.4.1/marked.min.js"></script>
+    <script src="https://unpkg.com/marked@16.4.1/lib/marked.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/highlight.min.js"></script>
     <link id="hljs-light" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/default.min.css">
     <link id="hljs-dark" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/dracula.min.css" disabled>
+    
     <style>
         :root{--bg:#f8f9fa;--fg:#212529;--bg-card:#fff;--border:#dee2e6;--hover:#f8f9fa;--select:#e3f2fd;--primary:#0d6efd;--spinner:var(--primary);--toggle:#6c757d;}
         body.dark{--bg:#0a0a0a;--fg:#f8f9f9;--bg-card:#161616;--border:#333;--hover:#1f1f1f;--select:#1e40af;--primary:#3b82f6;--spinner:var(--primary);--toggle:#adb5bd;}
@@ -63,7 +65,6 @@
 
     <script>
         // === KONFIGURACE A PŘESMĚROVÁNÍ ===
-        // Zde se čte konfigurace z localStorage
         const OWNER = localStorage.getItem('OWNER');
         const REPO = localStorage.getItem('REPO');
         const BRANCH = localStorage.getItem('BRANCH');
@@ -71,7 +72,6 @@
         const SITE_NAME = localStorage.getItem('SITE_NAME');
         const DEFAULT_FILE = 'README.md';
 
-        // Kontrola konfigurace a přesměrování na start-setup.html
         if (!OWNER || !REPO || !BRANCH) {
             document.body.innerHTML = '<div style="text-align: center; padding: 50px;"><h1>Nastavení Chybí</h1><p>Prosím, nejprve nastavte konfiguraci. Budete přesměrováni...</p></div>';
             setTimeout(() => {
@@ -96,7 +96,6 @@
                 const res = await fetch(`${url}?ref=${BRANCH}`);
                 
                 if (!res.ok) {
-                    // Chybová zpráva pro selhání načtení stromu souborů
                      document.getElementById('content').innerHTML = `<div class="loading"><p>Chyba při načítání adresářové struktury: ${res.status} ${res.statusText}.</p><p>Zkontrolujte nastavení ROOT_PATH a zda je repozitář veřejný.</p></div>`;
                      return [];
                 }
@@ -130,7 +129,6 @@
                 const li = document.createElement('li');
                 li.className = 'tree-item';
                 if (node.type === 'dir') li.classList.add(node.open ? 'open' : 'collapsed');
-                // OPRAVENO: Používá symboly šipek (▶/▼) místo textu
                 const toggle = node.type === 'dir' ? `<span class="toggle">${node.open ? '▼' : '▶'}</span>` : '<span class="toggle"></span>';
                 li.innerHTML = `${toggle}<span class="name" data-path="${node.path}">${node.name}</span>`;
                 if (node.type === 'dir') {
@@ -151,41 +149,38 @@
             const content = document.getElementById('content');
             content.innerHTML = `<div class="loading"><div class="spinner"></div><p>Načítám...</p></div>`;
             
-            // Zajištění čisté cesty a RAW URL
             const cleanPath = path.startsWith('/') ? path.substring(1) : path;
             const finalUrl = `${RAW_BASE}/${cleanPath}`;
 
             try {
-                // Volání pro stažení RAW obsahu Markdown souboru
                 const res = await fetch(finalUrl);
                 
                 if (!res.ok) {
-                    // PŘESNÁ CHYBA: Zobrazí stavový kód chyby
                     throw new Error(`Chyba při stahování souboru. HTTP Status: ${res.status} ${res.statusText}`);
                 }
                 
                 const md = await res.text();
                 const title = path.split('/').pop().replace('.md', '');
                 
-                // Převod Markdownu na HTML a zobrazení
+                // Zde dochází k volání marked.parse
                 content.innerHTML = `<h1 class="doc-title">${title}</h1>` + marked.parse(md, { gfm: true, breaks: false });
                 reHighlight();
                 content.scrollTop = 0;
                 
-                // Aktivace položky v menu
                 document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
                 document.querySelector(`[data-path="${path}"]`)?.closest('.tree-item')?.classList.add('active');
             } catch (e) {
                 console.error(e);
                 content.innerHTML = `<div class="loading"><p>
-                    Chyba: Nepodařilo se načíst soubor. Ujistěte se, že soubor existuje a má správná velká/malá písmena.
+                    Chyba: Nepodařilo se načíst soubor.
                     <br>Adresa, která selhala: <strong>${finalUrl}</strong>
                     <br>Detaily chyby: ${e.message}
                 </p></div>`;
             }
         }
 
-        // Theme
+        // Theme a Events (beze změny, funkční)
+
         let isDark = localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.body.classList.toggle('dark', isDark);
         document.getElementById('theme-toggle').textContent = isDark ? 'Sun' : 'Moon';
@@ -207,7 +202,6 @@
             setHighlightStyles();
         }
 
-        // Events
         document.getElementById('theme-toggle').onclick = toggleTheme;
         document.getElementById('search').oninput = e => {
             const term = e.target.value.toLowerCase();
@@ -224,7 +218,6 @@
                 const li = toggle.parentElement;
                 const open = li.classList.toggle('open');
                 li.classList.toggle('collapsed', !open);
-                // OPRAVENO: Používá symboly šipek (▶/▼) místo textu
                 toggle.textContent = open ? '▼' : '▶';
                 return;
             }
@@ -241,7 +234,6 @@
             const treeEl = document.getElementById('fileTree');
             renderTree(tree, treeEl);
             
-            // Logika pro nalezení a načtení výchozího souboru
             const flatTree = tree.flatMap(n => n.type === 'file' ? [n] : n.children || []).filter(f => f.type === 'file');
             
             const defaultFile = flatTree.find(f => f.path.toLowerCase().endsWith(DEFAULT_FILE.toLowerCase())) || flatTree[0];
@@ -249,20 +241,17 @@
             if (defaultFile) {
                 loadFile(defaultFile.path);
             } else if (tree.length > 0) {
-                 // Existují složky, ale žádné .md soubory v kořenu/ROOT_PATH
                  document.getElementById('content').innerHTML = `<div class="loading">
                      <p>Repozitář obsahuje složky, ale v adresáři ${ROOT_PATH || '/'} nebyly nalezeny žádné .md soubory.</p>
                      <p>Procházejte menu vlevo.</p>
                  </div>`;
             } else {
-                // Nebyl nalezen žádný soubor ani složka (prázdný repozitář)
                  document.getElementById('content').innerHTML = `<div class="loading">
                      <p>Chyba: Repozitář je prázdný nebo neobsahuje žádné .md soubory ve specifikovaném adresáři (${ROOT_PATH || '/'}).</p>
                  </div>`;
             }
         }
         
-        // Spouštění init() pouze pokud existuje konfigurace
         if (OWNER && REPO && BRANCH) {
             init();
         }
